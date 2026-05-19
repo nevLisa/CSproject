@@ -1,0 +1,177 @@
+#train
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torchvision import datasets, transforms, models
+from torch.utils.data import DataLoader
+import os
+
+
+def main():
+    BATCH_SIZE = 8
+    EPOCHS = 5
+    LEARNING_RATE = 0.001
+    DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"사용 중인 장치: {DEVICE}")
+
+    data_transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomRotation(15),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    ])
+
+    data_dir = './data'
+    train_path = os.path.join(data_dir, 'train')
+
+    if not os.path.exists(train_path):
+        print(f" 에러: {train_path} 폴더를 찾을 수 없습니다. 폴더명을 다시 확인해주세요.")
+        return
+
+    train_dataset = datasets.ImageFolder(train_path, transform=data_transform)
+    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=0)
+
+    class_names = train_dataset.classes
+    num_classes = len(class_names)
+    print(f"▶ 학습할 약초 종류 개수: {num_classes}")
+    print(f"▶ 약초 목록: {class_names}")
+
+    model = models.resnet50(pretrained=True)
+    num_ftrs = model.fc.in_features
+    model.fc = nn.Linear(num_ftrs, num_classes)
+    model = model.to(DEVICE)
+
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+
+    print("\n 학습을 시작합니다...")
+    for epoch in range(EPOCHS):
+        model.train()
+        running_loss = 0.0
+        running_corrects = 0
+
+        for inputs, labels in train_loader:
+            inputs = inputs.to(DEVICE)
+            labels = labels.to(DEVICE)
+
+            optimizer.zero_grad()
+            outputs = model(inputs)
+            _, preds = torch.max(outputs, 1)
+            loss = criterion(outputs, labels)
+
+            loss.backward()
+            optimizer.step()
+
+            running_loss += loss.item() * inputs.size(0)
+            running_corrects += torch.sum(preds == labels.data)
+
+        epoch_loss = running_loss / len(train_dataset)
+        epoch_acc = running_corrects.double() / len(train_dataset)
+
+        print(f'Epoch {epoch + 1}/{EPOCHS} - Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}')
+
+    torch.save({
+        'model_state_dict': model.state_dict(),
+        'class_names': class_names
+    }, 'herb_resnet50.pth')
+    print("\n 모델 학습 및 'herb_resnet50.pth' 파일 저장 완료!")
+
+
+if __name__ == '__main__':
+    main()
+
+#predict
+import torch
+import torch.nn as nn
+from torchvision import transforms, models
+from PIL import Image
+
+
+def predict_herb(image_path):
+    DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+    checkpoint = torch.load('herb_resnet50.pth', map_location=DEVICE)
+    class_names = checkpoint['class_names']
+
+
+    model = models.resnet50()
+    num_ftrs = model.fc.in_features
+    model.fc = nn.Linear(num_ftrs, len(class_names))
+    model.load_state_dict(checkpoint['model_state_dict'])
+    model = model.to(DEVICE)
+    model.eval()
+
+
+    transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    ])
+
+    image = Image.open(image_path).convert('RGB')
+    input_tensor = transform(image).unsqueeze(0).to(DEVICE)  # 배치 차원 추가
+
+
+    with torch.no_grad():
+        outputs = model(input_tensor)
+        probabilities = torch.nn.functional.softmax(outputs[0], dim=0)
+        confidence, preds = torch.max(probabilities, 0)
+
+    result_herb = class_names[preds.item()]
+    print(f"★ 분석 결과: 이 약초는 [{result_herb}] 일 확률이 {confidence.item() * 100:.2f}% 입니다.")
+
+
+if __name__ == '__main__':
+    predict_herb('test_image.jpg')
+
+#predict-2
+import sys
+import os
+import torch
+import torch.nn as nn
+from torchvision import transforms, models
+from PIL import Image
+
+
+def predict_herb(image_path):
+    if not os.path.exists(image_path):
+        print(f"❌ 에러: [{image_path}] 파일을 찾을 수 없습니다.")
+        return
+
+    DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    checkpoint = torch.load('herb_resnet50.pth', map_location=DEVICE)
+    class_names = checkpoint['class_names']
+
+    model = models.resnet50()
+    num_ftrs = model.fc.in_features
+    model.fc = nn.Linear(num_ftrs, len(class_names))
+    model.load_state_dict(checkpoint['model_state_dict'])
+    model = model.to(DEVICE)
+    model.eval()
+
+    transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    ])
+
+    image = Image.open(image_path).convert('RGB')
+    input_tensor = transform(image).unsqueeze(0).to(DEVICE)
+
+    with torch.no_grad():
+        outputs = model(input_tensor)
+        probabilities = torch.nn.functional.softmax(outputs[0], dim=0)
+        confidence, preds = torch.max(probabilities, 0)
+
+    result_herb = class_names[preds.item()]
+    print(f"★ 분석 결과: 이 약초는 [{result_herb}] 일 확률이 {confidence.item() * 100:.2f}% 입니다.")
+
+
+if __name__ == '__main__':
+    if len(sys.argv) < 2:
+        print("사용법: python predict_github.py <이미지_경로>")
+    else:
+        predict_herb(sys.argv[1])

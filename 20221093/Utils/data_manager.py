@@ -28,41 +28,43 @@ class PlantDataManager:
         return folder_map
     #이미지이름 과 라벨을 합쳐 데이터 프레임을 만드는 코드
     def parse_all_image(self):
-        dataset_records = [] #데이터 임시 저장용
+        dataset_records = []  # 데이터 임시 저장용
         folder_map = self.make_folder_map()
 
-        #에러 검출
+        # 에러 검출
         if not os.path.exists(self.base_json_dir):
             return pd.DataFrame()
-        #레이블 읽어 오고 이미지 이름 불러와서 데이터 프레임에 삽입 하는 코드
-        for file_name in os.listdir(self.base_json_dir):
-            if file_name.endswith(".json"):
-                json_file_path = os.path.join(self.base_json_dir, file_name)
 
-                try:
-                    with open(json_file_path, "r", encoding="utf-8") as f:
-                        data = json.load(f)
+        # [수정] os.listdir 대신 os.walk를 사용하여 하위 폴더까지 전부 탐색
+        for root, dirs, files in os.walk(self.base_json_dir):
+            for file_name in files:
+                if file_name.endswith(".json"):
+                    # root는 현재 탐색 중인 하위 폴더의 경로입니다.
+                    json_file_path = os.path.join(root, file_name)
 
-                    img_name = data["imagedata"]["filename"]
-                    kind_code = data["metadata"]["kind"]
-                    part_str = data["metadata"]["part"]
+                    try:
+                        with open(json_file_path, "r", encoding="utf-8") as f:
+                            data = json.load(f)
 
+                        img_name = data["imagedata"]["filename"]
+                        kind_code = data["metadata"]["kind"]
+                        part_str = data["metadata"]["part"]
 
-                    if kind_code in folder_map:
-                        matched_folder = folder_map[kind_code]
+                        if kind_code in folder_map:
+                            matched_folder = folder_map[kind_code]
 
-                        # 부분을 정수로 변환
-                        part_label = PART_MAP.get(part_str, -1)
+                            # 부분을 정수로 변환
+                            part_label = PART_MAP.get(part_str, -1)
 
-                        dataset_records.append({
-                            "image": img_name,
-                            "plant_label": int(kind_code),  # 식물 종류
-                            "part_label": part_label,  # 부위
-                            "plant_name": matched_folder.split("_")[1],
-                            "folder_name": matched_folder
-                        })
-                except Exception as e:
-                    print(f"[오류] 파일 처리 실패: {e}")
+                            dataset_records.append({
+                                "image": img_name,
+                                "plant_label": int(kind_code),  # 식물 종류
+                                "part_label": part_label,  # 부위
+                                "plant_name": matched_folder.split("_")[1],
+                                "folder_name": matched_folder
+                            })
+                    except Exception as e:
+                        print(f"[오류] 파일 처리 실패 ({file_name}): {e}")
 
         self.df = pd.DataFrame(dataset_records)
         return self.df

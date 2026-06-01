@@ -1,0 +1,60 @@
+{
+	"plantinfo": {
+		"class_name": "가는장구채",
+		"classification_info": "유사",
+		"herb_name": "왕불유행",
+		"similar_plants": [
+			"장구채",
+			"분홍장구채"
+		],
+		"toxic_info": "N",
+		"instance_info": {
+			"instance_name": "꽃"
+		}
+	},
+	"image": {
+		"file_path": "../../../원천데이터/가는장구채/꽃",
+		"file_name": "가는장구채_꽃_931028.jpg",
+		"shooting_date": "2021-07-25",
+		"region_name": null,
+		"file_format": "JPG",
+		"file_size": 7897954,
+		"width": 5536,
+		"height": 3712
+	},
+	"annotations": [
+		{
+			"id": "1",
+			"type": "bbox",
+			"bbox": {
+				"bndex_xcrdnt": 3526,
+				"bndex_ycrdnt": 1312,
+				"bndex_width": 529,
+				"bndex_hg": 453
+			},
+			"polygon": null
+		},
+		{
+			"id": "2",
+			"type": "bbox",
+			"bbox": {
+				"bndex_xcrdnt": 3106,
+				"bndex_ycrdnt": 446,
+				"bndex_width": 331,
+				"bndex_hg": 383
+			},
+			"polygon": null
+		},
+		{
+			"id": "3",
+			"type": "bbox",
+			"bbox": {
+				"bndex_xcrdnt": 1919,
+				"bndex_ycrdnt": 2872,
+				"bndex_width": 536,
+				"bndex_hg": 487
+			},
+			"polygon": null
+		}
+	]
+}
